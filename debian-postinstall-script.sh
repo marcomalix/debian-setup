@@ -29,9 +29,13 @@ DO_FIREFOX=true
 DO_BRAVE=true
 DO_BACKUP_TOOLS=true          # timeshift + borgbackup + vorta (GUI for borg)
 DO_R_RSTUDIO=true             # r-base + RStudio Desktop
-DO_RESEARCH_EXTRAS=false      # OFF by default — LaTeX + pandoc, see section 12
+DO_LAPTOP_POWER=true           # zram, TLP, CPU microcode, SSD trim — see section 13
+DO_SECURITY=true               # UFW firewall + Bluetooth — see section 14
+DO_EXTRAS=true                  # xournalpp, pdfarranger, keepassxc, synaptic, redshift — see section 15
+DO_FLATPAK=false               # OFF by default — adds Flathub as an extra app source, see section 15
+DO_RESEARCH_EXTRAS=false      # OFF by default — LaTeX + pandoc, see section 16
 DO_THUNDERBIRD=false          # OFF by default — flip to true whenever you want it
-DO_RESTORE_DOTFILES=true      # restore your XFCE panel + Geany config, see section 14
+DO_RESTORE_DOTFILES=true      # restore your XFCE panel + Geany config, see section 18
 DO_CLEANUP=true
 
 # RStudio isn't in the Debian repos, so it's installed from a direct .deb.
@@ -369,7 +373,79 @@ if [[ "$DO_R_RSTUDIO" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 13. Optional: LaTeX + Pandoc (OFF by default)
+# 13. Laptop power & battery: zram, TLP, CPU microcode, SSD trim
+# ---------------------------------------------------------------------------
+if [[ "$DO_LAPTOP_POWER" == true ]]; then
+    log "Setting up zram swap."
+    apt_install zram-tools
+    sudo systemctl enable --now zramswap.service 2>/dev/null || true
+
+    log "Installing TLP for laptop power/battery management."
+    apt_install tlp tlp-rdw powertop
+    # TLP and power-profiles-daemon manage the same thing and conflict —
+    # power-profiles-daemon is sometimes pulled in by GNOME-adjacent
+    # packages even on XFCE, so make sure it's off if present.
+    if dpkg -s power-profiles-daemon &>/dev/null; then
+        log "Disabling power-profiles-daemon (conflicts with TLP)."
+        sudo systemctl disable --now power-profiles-daemon
+    fi
+    sudo systemctl enable tlp
+
+    log "Installing CPU microcode updates."
+    CPU_VENDOR="$(grep -m1 vendor_id /proc/cpuinfo | awk '{print $3}')"
+    if [[ "$CPU_VENDOR" == "GenuineIntel" ]]; then
+        apt_install intel-microcode
+    elif [[ "$CPU_VENDOR" == "AuthenticAMD" ]]; then
+        apt_install amd64-microcode
+    else
+        log "Could not detect CPU vendor for a microcode package, skipping."
+    fi
+
+    log "Enabling weekly SSD trim."
+    sudo systemctl enable fstrim.timer
+fi
+
+# ---------------------------------------------------------------------------
+# 14. Security: firewall + Bluetooth
+# ---------------------------------------------------------------------------
+if [[ "$DO_SECURITY" == true ]]; then
+    log "Installing and enabling UFW firewall (deny incoming, allow outgoing)."
+    apt_install ufw
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    sudo ufw --force enable
+
+    log "Installing Bluetooth support."
+    apt_install bluez blueman
+fi
+
+# ---------------------------------------------------------------------------
+# 15. Handy extras
+# ---------------------------------------------------------------------------
+if [[ "$DO_EXTRAS" == true ]]; then
+    log "Installing convenience apps."
+    # xournalpp: annotate PDFs (papers, scanned documents) with a stylus/mouse.
+    # pdfarranger: merge/reorder/split PDF pages — handy for assembling a
+    #   thesis from separate chapter files or scanned material.
+    # keepassxc: local password manager.
+    # synaptic: GUI package manager — browse/install/remove Debian packages
+    #   without needing apt commands, useful day-to-day since you're not
+    #   coming from a dev background.
+    # gammastep: warms screen color in the evening — easier on the eyes for
+    #   long writing sessions. This replaces Redshift, whose upstream project
+    #   was archived in April 2026; gammastep is the actively maintained
+    #   fork of the same tool (same idea, same config style).
+    apt_install xournalpp pdfarranger keepassxc synaptic gammastep
+
+    if [[ "$DO_FLATPAK" == true ]]; then
+        log "Setting up Flatpak + Flathub."
+        apt_install flatpak
+        sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 16. Optional: LaTeX + Pandoc (OFF by default)
 # ---------------------------------------------------------------------------
 # Useful for thesis/article writing, but it's an opinionated choice (LaTeX
 # vs. just using LibreOffice Writer) and a real download, so it's off until
@@ -391,7 +467,7 @@ if [[ "$DO_RESEARCH_EXTRAS" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 14. Optional: Thunderbird (OFF by default — install whenever you want it)
+# 17. Optional: Thunderbird (OFF by default — install whenever you want it)
 # ---------------------------------------------------------------------------
 if [[ "$DO_THUNDERBIRD" == true ]]; then
     log "Installing Thunderbird."
@@ -399,7 +475,7 @@ if [[ "$DO_THUNDERBIRD" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 15. Restore your XFCE panel + Geany config
+# 18. Restore your XFCE panel + Geany config
 # ---------------------------------------------------------------------------
 # HOW TO SET THIS UP (run this once, on your CURRENT working machine, before
 # you reuse this script for a fresh install):
@@ -427,7 +503,7 @@ if [[ "$DO_RESTORE_DOTFILES" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 16. Cleanup
+# 19. Cleanup
 # ---------------------------------------------------------------------------
 if [[ "$DO_CLEANUP" == true ]]; then
     log "Cleaning up unused packages."
