@@ -1,0 +1,441 @@
+#!/usr/bin/env bash
+#
+# debian-postinstall.sh
+# Post-install setup for a fresh Debian 13 (trixie) netinstall — daily-use
+# workstation for scientific writing, browsing, R/RStudio and LibreOffice
+# Calc work.
+#
+# Usage:
+#   chmod +x debian-postinstall.sh
+#   ./debian-postinstall.sh
+#
+# Do NOT run this as root / with sudo. It calls sudo itself where needed.
+# Run it as your normal user.
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# 0. CONFIG — flip sections on/off here before running.
+# ---------------------------------------------------------------------------
+DO_SYSTEM_UPGRADE=true
+DO_DESKTOP_ENV=true          # xfce4 + goodies
+DO_CORE_APPS=true            # alacritty, geany, etc.
+DO_THEMING=true               # arc-theme, bibata cursors, papirus icons, celestial gtk theme
+DO_FONTS=true                  # Inter, JetBrains Mono, Google Sans Code
+DO_CREATIVE_GIS=true          # gimp, inkscape, qgis
+DO_BACKPORTS_LIBREOFFICE=true
+DO_ZOTERO=true
+DO_FIREFOX=true
+DO_BRAVE=true
+DO_BACKUP_TOOLS=true          # timeshift + borgbackup + vorta (GUI for borg)
+DO_R_RSTUDIO=true             # r-base + RStudio Desktop
+DO_RESEARCH_EXTRAS=false      # OFF by default — LaTeX + pandoc, see section 12
+DO_THUNDERBIRD=false          # OFF by default — flip to true whenever you want it
+DO_RESTORE_DOTFILES=true      # restore your XFCE panel + Geany config, see section 14
+DO_CLEANUP=true
+
+# RStudio isn't in the Debian repos, so it's installed from a direct .deb.
+# This URL WILL go stale — Posit ships a new version every few months.
+# Before running, check the current one at https://posit.co/download/rstudio-desktop/
+# (look for the "Ubuntu / Debian" row) and update this if it's changed.
+RSTUDIO_DEB_URL="https://download1.rstudio.org/electron/jammy/amd64/rstudio-2026.08.2-200-amd64.deb"
+
+# Celestial GTK theme isn't packaged for Debian either — it's built and
+# installed from source via its own install.sh (this is the standard,
+# widely-used pattern for GTK themes; no sudo needed, it installs to
+# ~/.themes for your user only).
+CELESTIAL_THEME_REPO="https://github.com/zquestz/celestial-gtk-theme.git"
+
+# Directory holding your exported XFCE panel + Geany config, expected to sit
+# right next to this script (see section 14 for how to create it).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES_DIR="${SCRIPT_DIR}/dotfiles"
+
+LOG_FILE="$HOME/debian-postinstall.log"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+fail_trap() {
+    local exit_code=$?
+    local line_no=$1
+    log "ERROR: script failed at line ${line_no} (exit code ${exit_code}). See ${LOG_FILE} for details."
+    exit "${exit_code}"
+}
+trap 'fail_trap $LINENO' ERR
+
+require_not_root() {
+    if [[ "${EUID}" -eq 0 ]]; then
+        echo "Don't run this script as root/sudo. Run it as your normal user; it will call sudo itself." >&2
+        exit 1
+    fi
+}
+
+apt_install() {
+    # Installs only packages that aren't already installed.
+    local pkgs=("$@")
+    local to_install=()
+    for pkg in "${pkgs[@]}"; do
+        if ! dpkg -s "$pkg" &>/dev/null; then
+            to_install+=("$pkg")
+        fi
+    done
+    if [[ ${#to_install[@]} -gt 0 ]]; then
+        log "Installing: ${to_install[*]}"
+        sudo apt-get install -y "${to_install[@]}"
+    else
+        log "Already installed, skipping: ${pkgs[*]}"
+    fi
+}
+
+restore_config_dir() {
+    # Copies a saved config directory into place, backing up whatever is
+    # already there instead of silently overwriting it.
+    local src="$1" dest="$2"
+    if [[ ! -d "$src" ]]; then
+        log "No saved config at ${src}, skipping."
+        return
+    fi
+    if [[ -d "$dest" ]]; then
+        local backup="${dest}.bak.$(date '+%Y%m%d%H%M%S')"
+        log "Backing up existing ${dest} to ${backup}"
+        mv "$dest" "$backup"
+    fi
+    mkdir -p "$(dirname "$dest")"
+    cp -r "$src" "$dest"
+    log "Restored ${dest}"
+}
+
+latest_github_zip_url() {
+    # Prints the .zip asset URL from a GitHub repo's latest release.
+    # Used for fonts that aren't packaged for Debian (no version to pin —
+    # always grabs whatever is current).
+    local repo="$1"
+    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" \
+        | grep -oP '"browser_download_url":\s*"\K[^"]+\.zip' \
+        | head -n1
+}
+
+# ---------------------------------------------------------------------------
+# Start
+# ---------------------------------------------------------------------------
+require_not_root
+: > "$LOG_FILE"  # truncate/create log file
+log "Starting Debian post-install script."
+
+# Cache sudo credentials once up front, then keep them alive in the
+# background so you're not prompted again mid-script.
+sudo -v
+( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null & )
+
+# ---------------------------------------------------------------------------
+# 1. System update
+# ---------------------------------------------------------------------------
+if [[ "$DO_SYSTEM_UPGRADE" == true ]]; then
+    log "Updating package index and upgrading base system."
+    sudo apt-get update
+    sudo apt-get upgrade -y
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Desktop environment + display manager
+# ---------------------------------------------------------------------------
+# xfce4/xfce4-goodies give you the desktop itself, but NOT a display manager
+# (the graphical login screen that starts your session and lets you pick
+# XFCE at boot). A netinstall with no desktop task selected boots straight
+# to a text login otherwise — that's the "no graphical connection" you saw.
+if [[ "$DO_DESKTOP_ENV" == true ]]; then
+    log "Installing XFCE desktop environment."
+    apt_install xfce4 xfce4-goodies
+
+    log "Installing and enabling LightDM display manager."
+    apt_install lightdm lightdm-gtk-greeter
+
+    sudo systemctl enable lightdm
+    # Make sure the system actually boots to a graphical login rather than
+    # a text console (relevant if the netinstall had no desktop task
+    # selected, so it's still set to boot to text mode).
+    sudo systemctl set-default graphical.target
+
+    log "LightDM enabled. A reboot (or 'sudo systemctl start lightdm' on a machine with no session yet) is needed to reach the graphical login."
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Core applications (official Debian repos)
+# ---------------------------------------------------------------------------
+if [[ "$DO_CORE_APPS" == true ]]; then
+    log "Installing core applications."
+    apt_install alacritty evince rofi plank qalculate-gtk
+    apt_install geany geany-plugin-addons geany-plugin-git-changebar \
+        geany-plugin-overview geany-plugin-spellcheck geany-plugin-treebrowser \
+        geany-plugin-markdown
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Theming: Arc + Bibata (as you had), plus Papirus icons + Celestial GTK theme
+# ---------------------------------------------------------------------------
+if [[ "$DO_THEMING" == true ]]; then
+    log "Installing theming packages."
+    apt_install arc-theme bibata-cursor-theme papirus-icon-theme
+
+    # Celestial theme: built from source, installs to ~/.themes (no sudo).
+    if [[ ! -d "$HOME/.themes/Celestial" && ! -d "$HOME/.themes/Celestial-dark" ]]; then
+        log "Installing Celestial GTK theme."
+        apt_install sassc git
+        CELESTIAL_TMP="$(mktemp -d)"
+        git clone --depth=1 "$CELESTIAL_THEME_REPO" "$CELESTIAL_TMP"
+        (cd "$CELESTIAL_TMP" && ./install.sh)
+        rm -rf "$CELESTIAL_TMP"
+    else
+        log "Celestial theme already installed, skipping."
+    fi
+
+    log "Theme + icons installed. Set them in Settings > Appearance and Settings > Window Manager after login (Papirus for icons, Celestial for the GTK/window theme)."
+fi
+
+# ---------------------------------------------------------------------------
+# 5. Fonts: Inter, JetBrains Mono, Google Sans Code
+# ---------------------------------------------------------------------------
+if [[ "$DO_FONTS" == true ]]; then
+    log "Installing fonts."
+    # Inter and JetBrains Mono are packaged for Debian.
+    apt_install fonts-inter fonts-jetbrains-mono
+
+    # Google Sans Code is not packaged anywhere — it only ships as GitHub
+    # release zips. Fetched dynamically (see latest_github_zip_url) rather
+    # than a pinned URL, since there's no Debian package to track a version
+    # for anyway.
+    GSC_DIR="$HOME/.local/share/fonts/GoogleSansCode"
+    if [[ ! -d "$GSC_DIR" ]]; then
+        log "Installing Google Sans Code."
+        apt_install unzip
+        GSC_URL="$(latest_github_zip_url "googlefonts/googlesans-code")"
+        if [[ -n "$GSC_URL" ]]; then
+            GSC_ZIP="$(mktemp --suffix=.zip)"
+            wget -q -O "$GSC_ZIP" "$GSC_URL"
+            mkdir -p "$GSC_DIR"
+            unzip -q -o "$GSC_ZIP" -d "$GSC_DIR"
+            rm -f "$GSC_ZIP"
+            fc-cache -f "$GSC_DIR" > /dev/null
+        else
+            log "WARNING: could not find a Google Sans Code release download — skipping. Check https://github.com/googlefonts/googlesans-code/releases/latest manually."
+        fi
+    else
+        log "Google Sans Code already installed, skipping."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 6. Creative & GIS tools
+# ---------------------------------------------------------------------------
+if [[ "$DO_CREATIVE_GIS" == true ]]; then
+    log "Installing GIMP, Inkscape, and QGIS."
+    apt_install gimp inkscape qgis
+fi
+
+# ---------------------------------------------------------------------------
+# 7. LibreOffice from backports
+# ---------------------------------------------------------------------------
+if [[ "$DO_BACKPORTS_LIBREOFFICE" == true ]]; then
+    log "Configuring trixie-backports and installing LibreOffice."
+    BACKPORTS_FILE="/etc/apt/sources.list.d/debian-backports.sources"
+    if [[ ! -f "$BACKPORTS_FILE" ]]; then
+        sudo tee "$BACKPORTS_FILE" > /dev/null << 'EOF'
+Types: deb deb-src
+URIs: http://deb.debian.org/debian
+Suites: trixie-backports
+Components: main
+Enabled: yes
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+    else
+        log "Backports source already configured, skipping."
+    fi
+    sudo apt-get update
+    if ! dpkg -s libreoffice &>/dev/null; then
+        sudo apt-get install -y -t trixie-backports libreoffice
+    else
+        log "LibreOffice already installed, skipping."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 8. Zotero
+# ---------------------------------------------------------------------------
+if [[ "$DO_ZOTERO" == true ]]; then
+    if ! dpkg -s zotero &>/dev/null; then
+        log "Installing Zotero."
+        # Third-party install script — review it before trusting it blindly:
+        # https://github.com/retorquere/zotero-pkg
+        wget -qO- https://raw.githubusercontent.com/retorquere/zotero-pkg/master/install.sh | sudo bash
+        sudo apt-get update
+        sudo apt-get install -y zotero
+    else
+        log "Zotero already installed, skipping."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 9. Firefox (Mozilla's own repo, for the current release rather than Debian's)
+# ---------------------------------------------------------------------------
+if [[ "$DO_FIREFOX" == true ]]; then
+    log "Configuring Mozilla repo and installing Firefox."
+    sudo install -d -m 0755 /etc/apt/keyrings
+
+    KEYRING="/etc/apt/keyrings/packages.mozilla.org.asc"
+    if [[ ! -f "$KEYRING" ]]; then
+        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | \
+            sudo tee "$KEYRING" > /dev/null
+    fi
+
+    SOURCES_FILE="/etc/apt/sources.list.d/mozilla.sources"
+    if [[ ! -f "$SOURCES_FILE" ]]; then
+        sudo tee "$SOURCES_FILE" > /dev/null << EOF
+Types: deb
+URIs: https://packages.mozilla.org/apt
+Suites: mozilla
+Components: main
+Signed-By: ${KEYRING}
+EOF
+    fi
+
+    PIN_FILE="/etc/apt/preferences.d/mozilla"
+    if [[ ! -f "$PIN_FILE" ]]; then
+        sudo tee "$PIN_FILE" > /dev/null << 'EOF'
+Package: *
+Pin: origin packages.mozilla.org
+Pin-Priority: 1000
+EOF
+    fi
+
+    sudo apt-get update
+    apt_install firefox
+fi
+
+# ---------------------------------------------------------------------------
+# 10. Brave
+# ---------------------------------------------------------------------------
+if [[ "$DO_BRAVE" == true ]]; then
+    if ! command -v brave-browser &>/dev/null; then
+        log "Installing Brave."
+        # Third-party install script — review before trusting:
+        # https://brave.com/linux/
+        curl -fsS https://dl.brave.com/install.sh | sh
+    else
+        log "Brave already installed, skipping."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 11. Backups: Timeshift (system snapshots) + Borg (file/data backups)
+# ---------------------------------------------------------------------------
+if [[ "$DO_BACKUP_TOOLS" == true ]]; then
+    log "Installing Timeshift and Borg backup tools."
+    # Timeshift: snapshots your SYSTEM (like a Windows System Restore point).
+    # Good for undoing a bad upgrade or config change. It is NOT meant for
+    # backing up your personal documents/thesis — exclude /home by default
+    # in its settings, and use Borg (below) for that instead.
+    apt_install timeshift
+
+    # Borg: deduplicated, encrypted backups — ideal for your documents,
+    # articles, thesis, RStudio projects, etc. It's normally used from the
+    # command line; Vorta gives it a proper GUI (system tray icon, scheduled
+    # backups, one-click restore) so you don't have to memorise borg commands.
+    apt_install borgbackup vorta
+fi
+
+# ---------------------------------------------------------------------------
+# 12. R and RStudio Desktop
+# ---------------------------------------------------------------------------
+if [[ "$DO_R_RSTUDIO" == true ]]; then
+    log "Installing R."
+    apt_install r-base r-base-dev
+
+    if ! dpkg -s rstudio &>/dev/null; then
+        log "Installing RStudio Desktop from ${RSTUDIO_DEB_URL}"
+        RSTUDIO_DEB="/tmp/$(basename "$RSTUDIO_DEB_URL")"
+        wget -q -O "$RSTUDIO_DEB" "$RSTUDIO_DEB_URL"
+        # apt-get install (not dpkg -i) so any missing dependencies of the
+        # .deb get pulled in automatically.
+        sudo apt-get install -y "$RSTUDIO_DEB"
+        rm -f "$RSTUDIO_DEB"
+    else
+        log "RStudio already installed, skipping."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 13. Optional: LaTeX + Pandoc (OFF by default)
+# ---------------------------------------------------------------------------
+# Useful for thesis/article writing, but it's an opinionated choice (LaTeX
+# vs. just using LibreOffice Writer) and a real download, so it's off until
+# you decide you want it.
+#
+#   texlive-latex-extra, texlive-fonts-recommended, texlive-lang-french
+#       -> LaTeX, if your thesis/journal template needs it rather than
+#          LibreOffice Writer. (texlive-full is ~5-7 GB; this subset covers
+#          the vast majority of article/thesis templates. Swap/add
+#          texlive-lang-arabic too if you need it.)
+#   pandoc
+#       -> converts between Markdown/LaTeX/Word/PDF; also what RStudio uses
+#          under the hood to knit R Markdown/Quarto documents to PDF/Word.
+#
+if [[ "$DO_RESEARCH_EXTRAS" == true ]]; then
+    log "Installing LaTeX and Pandoc."
+    apt_install texlive-latex-extra texlive-fonts-recommended texlive-lang-french
+    apt_install pandoc
+fi
+
+# ---------------------------------------------------------------------------
+# 14. Optional: Thunderbird (OFF by default — install whenever you want it)
+# ---------------------------------------------------------------------------
+if [[ "$DO_THUNDERBIRD" == true ]]; then
+    log "Installing Thunderbird."
+    apt_install thunderbird
+fi
+
+# ---------------------------------------------------------------------------
+# 15. Restore your XFCE panel + Geany config
+# ---------------------------------------------------------------------------
+# HOW TO SET THIS UP (run this once, on your CURRENT working machine, before
+# you reuse this script for a fresh install):
+#
+#   mkdir -p dotfiles
+#   cp -r ~/.config/xfce4 dotfiles/xfce4
+#   cp -r ~/.config/geany dotfiles/geany
+#
+# Then copy the whole folder (this script + the dotfiles/ directory next to
+# it) to the new machine before running the script. xfce4/ carries your
+# panel layout, launchers, and plugin settings (xfconf); geany/ carries your
+# editor settings, keybindings, snippets, and any custom color scheme.
+#
+# This just needs to happen before you first log into XFCE — XFCE and Geany
+# both read these files at session/first-launch, so there's nothing to
+# "apply" afterwards, no panel restart needed.
+if [[ "$DO_RESTORE_DOTFILES" == true ]]; then
+    if [[ -d "$DOTFILES_DIR" ]]; then
+        log "Restoring saved config from ${DOTFILES_DIR}."
+        restore_config_dir "${DOTFILES_DIR}/xfce4" "$HOME/.config/xfce4"
+        restore_config_dir "${DOTFILES_DIR}/geany" "$HOME/.config/geany"
+    else
+        log "No dotfiles/ directory found next to the script (expected ${DOTFILES_DIR}) — skipping config restore. See the comment above this section for how to create it."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 16. Cleanup
+# ---------------------------------------------------------------------------
+if [[ "$DO_CLEANUP" == true ]]; then
+    log "Cleaning up unused packages."
+    sudo apt-get autoremove -y
+    sudo apt-get autoclean -y
+fi
+
+log "Post-install script finished successfully."
+if [[ "$DO_DESKTOP_ENV" == true ]]; then
+    log "Reboot now to reach the graphical XFCE login (sudo reboot)."
+fi

@@ -1,0 +1,263 @@
+<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <value type="int" value="2"/>
+    <property name="dark-mode" type="bool" value="true"/>
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=6;x=0;y=0"/>
+      <property name="length" type="uint" value="100"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="icon-size" type="uint" value="18"/>
+      <property name="size" type="uint" value="30"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="10"/>
+        <value type="int" value="4"/>
+        <value type="int" value="24"/>
+        <value type="int" value="17"/>
+        <value type="int" value="21"/>
+        <value type="int" value="19"/>
+        <value type="int" value="18"/>
+        <value type="int" value="20"/>
+        <value type="int" value="26"/>
+        <value type="int" value="22"/>
+        <value type="int" value="2"/>
+        <value type="int" value="3"/>
+        <value type="int" value="5"/>
+        <value type="int" value="6"/>
+        <value type="int" value="25"/>
+        <value type="int" value="7"/>
+        <value type="int" value="11"/>
+        <value type="int" value="15"/>
+        <value type="int" value="16"/>
+        <value type="int" value="14"/>
+        <value type="int" value="13"/>
+        <value type="int" value="12"/>
+        <value type="int" value="23"/>
+        <value type="int" value="8"/>
+        <value type="int" value="9"/>
+      </property>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="enter-opacity" type="uint" value="100"/>
+      <property name="leave-opacity" type="uint" value="100"/>
+      <property name="background-image" type="string" value="file:///home/malik/Pictures/flowers-3.jpg"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.062208778173190968"/>
+        <value type="double" value="0.0086666666666666645"/>
+        <value type="double" value="0.13"/>
+        <value type="double" value="1"/>
+      </property>
+    </property>
+    <property name="panel-2" type="empty">
+      <property name="position" type="string" value="p=10;x=959;y=1049"/>
+      <property name="size" type="uint" value="42"/>
+      <property name="autohide-behavior" type="uint" value="1"/>
+      <property name="enter-opacity" type="uint" value="72"/>
+      <property name="leave-opacity" type="uint" value="78"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="27"/>
+        <value type="int" value="28"/>
+        <value type="int" value="29"/>
+        <value type="int" value="30"/>
+        <value type="int" value="31"/>
+        <value type="int" value="32"/>
+        <value type="int" value="33"/>
+      </property>
+      <property name="length" type="double" value="8.2291666666666661"/>
+      <property name="length-adjust" type="bool" value="true"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="position-locked" type="bool" value="true"/>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-2" type="string" value="tasklist">
+      <property name="grouping" type="uint" value="1"/>
+    </property>
+    <property name="plugin-3" type="string" value="separator">
+      <property name="expand" type="bool" value="true"/>
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-4" type="string" value="pager">
+      <property name="rows" type="uint" value="1"/>
+      <property name="miniature-view" type="bool" value="false"/>
+    </property>
+    <property name="plugin-5" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-6" type="string" value="systray">
+      <property name="square-icons" type="bool" value="true"/>
+      <property name="known-legacy-items" type="array">
+        <value type="string" value="geany"/>
+        <value type="string" value="ibus panel"/>
+      </property>
+      <property name="known-items" type="array">
+        <value type="string" value="vlc"/>
+      </property>
+    </property>
+    <property name="plugin-7" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-8" type="string" value="clock">
+      <property name="digital-layout" type="uint" value="3"/>
+      <property name="digital-date-font" type="string" value="Sans 11"/>
+      <property name="digital-time-font" type="string" value="Google Sans Code Medium 12"/>
+      <property name="timezone" type="string" value="Africa/Algiers"/>
+    </property>
+    <property name="plugin-9" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-1" type="string" value="whiskermenu">
+      <property name="show-button-title" type="bool" value="true"/>
+      <property name="position-categories-alternate" type="bool" value="true"/>
+      <property name="position-profile-alternate" type="bool" value="false"/>
+      <property name="position-search-alternate" type="bool" value="false"/>
+      <property name="position-commands-alternate" type="bool" value="false"/>
+      <property name="menu-width" type="int" value="506"/>
+      <property name="menu-height" type="int" value="599"/>
+      <property name="hover-switch-category" type="bool" value="true"/>
+      <property name="recent" type="array">
+        <value type="string" value="org.qgis.qgis.desktop"/>
+        <value type="string" value="geany.desktop"/>
+        <value type="string" value="libreoffice-writer.desktop"/>
+        <value type="string" value="brave-browser.desktop"/>
+        <value type="string" value="firefox.desktop"/>
+        <value type="string" value="qalculate-gtk.desktop"/>
+        <value type="string" value="xfce-keyboard-settings.desktop"/>
+        <value type="string" value="rofi.desktop"/>
+        <value type="string" value="rofi-theme-selector.desktop"/>
+        <value type="string" value="xfce4-appfinder.desktop"/>
+      </property>
+      <property name="button-icon" type="string" value="emblem-debian-white"/>
+      <property name="button-title" type="string" value=" Start "/>
+      <property name="favorites" type="array">
+        <value type="string" value="xfce4-web-browser.desktop"/>
+        <value type="string" value="xfce4-mail-reader.desktop"/>
+        <value type="string" value="xfce4-file-manager.desktop"/>
+        <value type="string" value="xfce4-terminal-emulator.desktop"/>
+        <value type="string" value="Alacritty.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-10" type="string" value="separator"/>
+    <property name="plugin-11" type="string" value="notification-plugin"/>
+    <property name="plugin-13" type="string" value="netload"/>
+    <property name="plugin-14" type="string" value="power-manager-plugin"/>
+    <property name="plugin-15" type="string" value="pulseaudio">
+      <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
+      <property name="known-players" type="string" value="Brave;vlc"/>
+    </property>
+    <property name="plugin-16" type="string" value="screenshooter"/>
+    <property name="plugin-12" type="string" value="xfce4-clipman-plugin"/>
+    <property name="plugin-17" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17885531121.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-18" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17885531393.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-19" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17885531594.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-20" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17885531855.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-21" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17885532526.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-22" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17885532677.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-23" type="string" value="separator"/>
+    <property name="plugin-24" type="string" value="separator">
+      <property name="expand" type="bool" value="false"/>
+    </property>
+    <property name="plugin-25" type="string" value="weather">
+      <property name="location" type="empty">
+        <property name="name" type="string" value="Aïn Benian ⵉⵏ ⴱⴻⵏⵢⴰⵏ عين البنيان, Daïra de Chéraga"/>
+        <property name="latitude" type="string" value="36.803852"/>
+        <property name="longitude" type="string" value="2.921571"/>
+      </property>
+      <property name="msl" type="int" value="18"/>
+      <property name="timezone" type="string" value=""/>
+      <property name="offset" type="string" value="+01:00"/>
+      <property name="cache-max-age" type="int" value="172800"/>
+      <property name="power-saving" type="bool" value="true"/>
+      <property name="units" type="empty">
+        <property name="temperature" type="int" value="0"/>
+        <property name="pressure" type="int" value="0"/>
+        <property name="windspeed" type="int" value="0"/>
+        <property name="precipitation" type="int" value="0"/>
+        <property name="altitude" type="int" value="0"/>
+        <property name="apparent-temperature" type="int" value="2"/>
+      </property>
+      <property name="round" type="bool" value="true"/>
+      <property name="single-row" type="bool" value="true"/>
+      <property name="tooltip-style" type="int" value="1"/>
+      <property name="forecast" type="empty">
+        <property name="layout" type="int" value="1"/>
+        <property name="days" type="int" value="5"/>
+      </property>
+      <property name="theme-dir" type="string" value="/usr/share/xfce4/weather/icons/liquid-dark"/>
+      <property name="scrollbox" type="empty">
+        <property name="show" type="bool" value="true"/>
+        <property name="animate" type="bool" value="true"/>
+        <property name="lines" type="int" value="1"/>
+        <property name="color" type="string" value="rgba(0,0,0,0)"/>
+        <property name="use-color" type="bool" value="false"/>
+      </property>
+    </property>
+    <property name="plugin-26" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17886308411.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-27" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889577491.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-28" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889577632.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-29" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889577763.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-30" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889577884.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-31" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889578025.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-32" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889578246.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-33" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17889578347.desktop"/>
+      </property>
+    </property>
+  </property>
+</channel>
