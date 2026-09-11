@@ -439,7 +439,7 @@ if [[ "$DO_EXTRAS" == true ]]; then
     #   was archived in April 2026; gammastep is the actively maintained
     #   fork of the same tool (same idea, same config style).
     # vlc: plays basically anything — video, audio, streams.
-    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc
+    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc fastfetch duf
 
     if [[ "$DO_FLATPAK" == true ]]; then
         log "Setting up Flatpak + Flathub."
