@@ -198,7 +198,55 @@ if [[ "$DO_THEMING" == true ]]; then
         log "Celestial theme already installed, skipping."
     fi
 
-    log "Theme + icons installed. Set them in Settings > Appearance and Settings > Window Manager after login (Papirus for icons, Celestial for the GTK/window theme)."
+    # Mint-Y / Mint-X: not packaged for Debian either (only in Linux Mint's
+    # own repo, built for Ubuntu bases). Built from source the same way as
+    # Celestial above. Bonus: the upstream repo already bundles matching
+    # xfwm4 window-border theming alongside the GTK theme, so this one step
+    # gets you both the look and matching window decorations.
+    if [[ ! -d "$HOME/.themes/Mint-Y" && ! -d "$HOME/.themes/Mint-X" ]]; then
+        log "Building and installing Mint-Y/Mint-X themes."
+        apt_install python3-libsass git
+        MINT_TMP="$(mktemp -d)"
+        git clone --depth=1 https://github.com/linuxmint/mint-themes.git "$MINT_TMP"
+        (cd "$MINT_TMP" && python3 generate-themes.py)
+        mkdir -p "$HOME/.themes"
+        cp -r "$MINT_TMP"/usr/share/themes/* "$HOME/.themes/"
+        rm -rf "$MINT_TMP"
+    else
+        log "Mint themes already installed, skipping."
+    fi
+
+    # Surfn icons: also not packaged, built by Erik Dubois, distributed as a
+    # plain folder in the repo rather than a build/install script — just
+    # copied straight into ~/.icons.
+    if [[ ! -d "$HOME/.icons/Surfn" ]]; then
+        log "Installing Surfn icon theme."
+        apt_install git
+        SURFN_TMP="$(mktemp -d)"
+        git clone --depth=1 https://github.com/erikdubois/Surfn.git "$SURFN_TMP"
+        mkdir -p "$HOME/.icons"
+        cp -r "$SURFN_TMP"/surfn-icons/* "$HOME/.icons/"
+        rm -rf "$SURFN_TMP"
+    else
+        log "Surfn icons already installed, skipping."
+    fi
+
+    # Colloid: also unpackaged, built via its own install.sh (same pattern
+    # as Celestial). Using the catppuccin color scheme with all folder
+    # colors for the soft/pastel look, and installing every folder color so
+    # you can pick your favorite afterward in the icon theme selector.
+    if ! find "$HOME/.local/share/icons" -maxdepth 1 -iname 'Colloid*' 2>/dev/null | grep -q .; then
+        log "Building and installing Colloid icon theme (catppuccin/pastel scheme)."
+        apt_install git
+        COLLOID_TMP="$(mktemp -d)"
+        git clone --depth=1 https://github.com/vinceliuice/Colloid-icon-theme.git "$COLLOID_TMP"
+        (cd "$COLLOID_TMP" && ./install.sh -s catppuccin -t all)
+        rm -rf "$COLLOID_TMP"
+    else
+        log "Colloid icons already installed, skipping."
+    fi
+
+    log "Theme + icons installed. Set them in Settings > Appearance (GTK theme: Celestial or Mint-Y/Mint-X; icons: Papirus, Surfn, or Colloid) and Settings > Window Manager (matching xfwm4 theme) after login."
 fi
 
 # ---------------------------------------------------------------------------
@@ -264,7 +312,13 @@ EOF
     fi
     sudo apt-get update
     if ! dpkg -s libreoffice &>/dev/null; then
-        sudo apt-get install -y -t trixie-backports libreoffice
+        # libreoffice-gtk3 must come from backports too, alongside the main
+        # package — if it's left to install from stable while LibreOffice
+        # itself is from backports, you get a version mismatch: LibreOffice
+        # falls back to an older/inconsistent GTK3 integration, which shows
+        # up as outdated-looking icons/widgets and dialog theming that
+        # doesn't match the rest of your desktop.
+        sudo apt-get install -y -t trixie-backports libreoffice libreoffice-gtk3
     else
         log "LibreOffice already installed, skipping."
     fi
@@ -439,7 +493,7 @@ if [[ "$DO_EXTRAS" == true ]]; then
     #   was archived in April 2026; gammastep is the actively maintained
     #   fork of the same tool (same idea, same config style).
     # vlc: plays basically anything — video, audio, streams.
-    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc fastfetch duf
+    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc
 
     if [[ "$DO_FLATPAK" == true ]]; then
         log "Setting up Flatpak + Flathub."
