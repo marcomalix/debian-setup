@@ -225,7 +225,18 @@ if [[ "$DO_THEMING" == true ]]; then
         SURFN_TMP="$(mktemp -d)"
         git clone --depth=1 https://github.com/erikdubois/Surfn.git "$SURFN_TMP"
         mkdir -p "$HOME/.icons"
-        cp -r "$SURFN_TMP"/surfn-icons/* "$HOME/.icons/"
+        # The repo's internal folder layout isn't fixed/documented, so
+        # locate the actual theme folder(s) by finding index.theme files
+        # (the standard marker of a valid icon theme directory) rather than
+        # assuming a fixed subfolder name.
+        mapfile -t SURFN_THEME_DIRS < <(find "$SURFN_TMP" -mindepth 1 -maxdepth 4 -name "index.theme" -exec dirname {} \;)
+        if [[ ${#SURFN_THEME_DIRS[@]} -gt 0 ]]; then
+            for d in "${SURFN_THEME_DIRS[@]}"; do
+                cp -r "$d" "$HOME/.icons/"
+            done
+        else
+            log "WARNING: could not locate a Surfn theme folder in the cloned repo — skipping. Check https://github.com/erikdubois/Surfn manually."
+        fi
         rm -rf "$SURFN_TMP"
     else
         log "Surfn icons already installed, skipping."
