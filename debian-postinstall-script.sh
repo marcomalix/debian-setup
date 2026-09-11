@@ -438,7 +438,8 @@ if [[ "$DO_EXTRAS" == true ]]; then
     #   long writing sessions. This replaces Redshift, whose upstream project
     #   was archived in April 2026; gammastep is the actively maintained
     #   fork of the same tool (same idea, same config style).
-    apt_install xournalpp pdfarranger keepassxc synaptic gammastep
+    # vlc: plays basically anything — video, audio, streams.
+    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc
 
     if [[ "$DO_FLATPAK" == true ]]; then
         log "Setting up Flatpak + Flathub."
