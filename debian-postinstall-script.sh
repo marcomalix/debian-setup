@@ -220,11 +220,14 @@ if [[ "$DO_FONTS" == true ]]; then
         GSC_URL="$(latest_github_zip_url "googlefonts/googlesans-code")"
         if [[ -n "$GSC_URL" ]]; then
             GSC_ZIP="$(mktemp --suffix=.zip)"
-            wget -q -O "$GSC_ZIP" "$GSC_URL"
-            mkdir -p "$GSC_DIR"
-            unzip -q -o "$GSC_ZIP" -d "$GSC_DIR"
+            if wget -q -O "$GSC_ZIP" "$GSC_URL"; then
+                mkdir -p "$GSC_DIR"
+                unzip -q -o "$GSC_ZIP" -d "$GSC_DIR"
+                fc-cache -f "$GSC_DIR" > /dev/null
+            else
+                log "WARNING: failed to download Google Sans Code (network issue) — skipping. Rerun the script later to retry just this bit."
+            fi
             rm -f "$GSC_ZIP"
-            fc-cache -f "$GSC_DIR" > /dev/null
         else
             log "WARNING: could not find a Google Sans Code release download — skipping. Check https://github.com/googlefonts/googlesans-code/releases/latest manually."
         fi
