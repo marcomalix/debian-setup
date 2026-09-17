@@ -575,7 +575,7 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$DO_PRINT_SCAN" == true ]]; then
     log "Installing printing and scanning support."
-    apt_install cups cups-pdf printer-driver-gutenprint system-config-printer simple-scan
+    apt_install cups printer-driver-cups-pdf printer-driver-gutenprint system-config-printer simple-scan
 fi
 
 # ---------------------------------------------------------------------------
