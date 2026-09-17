@@ -266,7 +266,20 @@ if [[ "$DO_THEMING" == true ]]; then
         log "Colloid icons already installed, skipping."
     fi
 
-    log "Theme + icons installed. Set them in Settings > Appearance (GTK theme: Celestial or Mint-Y/Mint-X; icons: Papirus, Surfn, or Colloid) and Settings > Window Manager (matching xfwm4 theme) after login."
+    # Tela Circle: same author/pattern as Colloid, also unpackaged.
+    # -a installs every color variant at once, pick your favorite afterward.
+    if ! find "$HOME/.local/share/icons" -maxdepth 1 -iname 'Tela-circle*' 2>/dev/null | grep -q .; then
+        log "Building and installing Tela Circle icon theme."
+        apt_install git
+        TELA_TMP="$(mktemp -d)"
+        git clone --depth=1 https://github.com/vinceliuice/Tela-circle-icon-theme.git "$TELA_TMP"
+        (cd "$TELA_TMP" && ./install.sh -a)
+        rm -rf "$TELA_TMP"
+    else
+        log "Tela Circle icons already installed, skipping."
+    fi
+
+    log "Theme + icons installed. Set them in Settings > Appearance (GTK theme: Celestial or Mint-Y/Mint-X; icons: Papirus, Surfn, Colloid, or Tela Circle) and Settings > Window Manager (matching xfwm4 theme) after login."
 fi
 
 # ---------------------------------------------------------------------------
@@ -477,6 +490,12 @@ if [[ "$DO_LAPTOP_POWER" == true ]]; then
     else
         log "Could not detect CPU vendor for a microcode package, skipping."
     fi
+
+    log "Installing Linux kernel headers."
+    # Needed to build any DKMS kernel module — VirtualBox Guest Additions,
+    # some wifi/printer drivers, etc. Tracks whatever kernel is currently
+    # running rather than a fixed version.
+    apt_install linux-headers-amd64
 
     log "Enabling weekly SSD trim."
     sudo systemctl enable fstrim.timer
