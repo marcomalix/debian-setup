@@ -33,9 +33,18 @@ DO_LAPTOP_POWER=true           # zram, TLP, CPU microcode, SSD trim — see sect
 DO_SECURITY=true               # UFW firewall + Bluetooth — see section 14
 DO_EXTRAS=true                  # xournalpp, pdfarranger, keepassxc, synaptic, redshift — see section 15
 DO_FLATPAK=false               # OFF by default — adds Flathub as an extra app source, see section 15
-DO_RESEARCH_EXTRAS=false      # OFF by default — LaTeX + pandoc, see section 16
+DO_NETWORK_MANAGER=false      # OFF by default — see section 16, read the comment there before enabling
+DO_AUDIO=true                  # pipewire-audio + pavucontrol — see section 17
+DO_PRINT_SCAN=true             # cups, cups-pdf, gutenprint, simple-scan — see section 18
+DO_DISK_HEALTH=true            # smartmontools, baobab, gparted — see section 19
+DO_GVFS_EXTRAS=true            # mount cameras/phones/network shares in Thunar — see section 20
+DO_ARCHIVE_TOOLS=true          # p7zip, unrar, Thunar archive plugin — see section 21
+DO_DESKTOP_EXTRAS=true         # flameshot, font-manager, catfish, meld — see section 22
+DO_CLI_TOOLS=true              # bat, eza, fd-find, ripgrep, tldr, tmux, ncdu — see section 23
+DO_HW_MONITORING=true          # lm-sensors, inxi — see section 24
+DO_RESEARCH_EXTRAS=false      # OFF by default — LaTeX + pandoc, see section 25
 DO_THUNDERBIRD=false          # OFF by default — flip to true whenever you want it
-DO_RESTORE_DOTFILES=true      # restore your XFCE panel + Geany config, see section 18
+DO_RESTORE_DOTFILES=true      # restore your XFCE panel + Geany config, see section 27
 DO_CLEANUP=true
 
 # RStudio isn't in the Debian repos, so it's installed from a direct .deb.
@@ -514,7 +523,113 @@ if [[ "$DO_EXTRAS" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 16. Optional: LaTeX + Pandoc (OFF by default)
+# 16. Networking: NetworkManager applet (OFF by default — read this first)
+# ---------------------------------------------------------------------------
+# Your netinstall almost certainly set up networking the traditional Debian
+# way, via /etc/network/interfaces — NOT NetworkManager. Installing NM on
+# top of that USUALLY coexists fine (it won't touch an interface that's
+# already explicitly configured there), but it can also just show nothing
+# useful in the tray if it doesn't take over the connection — it's not
+# "broken", just not guaranteed to give you the wifi-switching UI you'd
+# expect. If you enable this and the tray icon shows no networks, check
+# /etc/network/interfaces — you likely need to remove or comment out the
+# entry for your interface there so NetworkManager can manage it instead.
+if [[ "$DO_NETWORK_MANAGER" == true ]]; then
+    log "Installing NetworkManager + tray applet."
+    apt_install network-manager network-manager-gnome
+fi
+
+# ---------------------------------------------------------------------------
+# 17. Audio: PipeWire + volume control GUI
+# ---------------------------------------------------------------------------
+if [[ "$DO_AUDIO" == true ]]; then
+    log "Installing audio stack."
+    # Debian 13 defaults to PipeWire over PulseAudio; pipewire-audio is the
+    # standard meta-package for it. pavucontrol gives you a proper mixer/
+    # routing GUI. Both are safe no-ops if your desktop task already pulled
+    # these in as dependencies.
+    apt_install pipewire-audio pavucontrol
+fi
+
+# ---------------------------------------------------------------------------
+# 18. Printing & scanning
+# ---------------------------------------------------------------------------
+if [[ "$DO_PRINT_SCAN" == true ]]; then
+    log "Installing printing and scanning support."
+    apt_install cups cups-pdf printer-driver-gutenprint system-config-printer simple-scan
+fi
+
+# ---------------------------------------------------------------------------
+# 19. Disk health & management
+# ---------------------------------------------------------------------------
+if [[ "$DO_DISK_HEALTH" == true ]]; then
+    log "Installing disk health and management tools."
+    # smartmontools: warns you before a failing drive costs you data —
+    # pairs naturally with the Borg/Timeshift backups from section 11.
+    apt_install smartmontools baobab gparted
+fi
+
+# ---------------------------------------------------------------------------
+# 20. Removable media / device mounting in Thunar
+# ---------------------------------------------------------------------------
+if [[ "$DO_GVFS_EXTRAS" == true ]]; then
+    log "Installing extra GVFS backends for Thunar."
+    # Lets Thunar mount cameras/phones/network shares directly — relevant
+    # if you're importing field photos from coastal work off a camera.
+    apt_install gvfs-gphoto2 gvfs-mtp gvfs-smb
+fi
+
+# ---------------------------------------------------------------------------
+# 21. Archive handling
+# ---------------------------------------------------------------------------
+if [[ "$DO_ARCHIVE_TOOLS" == true ]]; then
+    log "Installing archive tools."
+    apt_install p7zip-full unrar thunar-archive-plugin
+fi
+
+# ---------------------------------------------------------------------------
+# 22. Desktop extras: screenshots, font manager, file search, diff tool
+# ---------------------------------------------------------------------------
+if [[ "$DO_DESKTOP_EXTRAS" == true ]]; then
+    log "Installing desktop convenience apps."
+    # flameshot: annotated screenshots (arrows, blur, text) — more useful
+    #   than the basic screenshooter when building teaching slides.
+    # font-manager: preview/manage the fonts installed in section 5.
+    # catfish: quick file search GUI, complements Thunar.
+    # meld: side-by-side diff/merge — handy for comparing script/document
+    #   versions, including this very script.
+    apt_install flameshot font-manager catfish meld
+fi
+
+# ---------------------------------------------------------------------------
+# 23. CLI quality-of-life tools
+# ---------------------------------------------------------------------------
+if [[ "$DO_CLI_TOOLS" == true ]]; then
+    log "Installing CLI tools."
+    apt_install bat eza fd-find ripgrep tldr tmux ncdu
+
+    # Debian ships bat's binary as "batcat" and fd-find's as "fdfind" —
+    # both to avoid clashing with unrelated older packages that already
+    # used the names "bat" and "fd". Symlinking them makes the commands
+    # work under their upstream names, matching how you'd expect to type
+    # them from the Arch list.
+    mkdir -p "$HOME/.local/bin"
+    ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
+    ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+    log "bat/fd symlinked into ~/.local/bin — make sure that's on your PATH (it is by default in most Debian shell setups once the directory exists, but check after reboot)."
+fi
+
+# ---------------------------------------------------------------------------
+# 24. Hardware monitoring
+# ---------------------------------------------------------------------------
+if [[ "$DO_HW_MONITORING" == true ]]; then
+    log "Installing hardware monitoring tools."
+    apt_install lm-sensors inxi
+    log "lm-sensors installed. Run 'sudo sensors-detect' once manually (it asks interactive yes/no questions about your hardware, so it's not run automatically here) to enable full sensor detection."
+fi
+
+# ---------------------------------------------------------------------------
+# 25. Optional: LaTeX + Pandoc (OFF by default)
 # ---------------------------------------------------------------------------
 # Useful for thesis/article writing, but it's an opinionated choice (LaTeX
 # vs. just using LibreOffice Writer) and a real download, so it's off until
@@ -536,7 +651,7 @@ if [[ "$DO_RESEARCH_EXTRAS" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 17. Optional: Thunderbird (OFF by default — install whenever you want it)
+# 26. Optional: Thunderbird (OFF by default — install whenever you want it)
 # ---------------------------------------------------------------------------
 if [[ "$DO_THUNDERBIRD" == true ]]; then
     log "Installing Thunderbird."
@@ -544,7 +659,7 @@ if [[ "$DO_THUNDERBIRD" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 18. Restore your XFCE panel + Geany config
+# 27. Restore your XFCE panel + Geany config
 # ---------------------------------------------------------------------------
 # HOW TO SET THIS UP (run this once, on your CURRENT working machine, before
 # you reuse this script for a fresh install):
@@ -572,7 +687,7 @@ if [[ "$DO_RESTORE_DOTFILES" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 19. Cleanup
+# 28. Cleanup
 # ---------------------------------------------------------------------------
 if [[ "$DO_CLEANUP" == true ]]; then
     log "Cleaning up unused packages."
