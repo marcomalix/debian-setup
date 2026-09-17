@@ -631,7 +631,8 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$DO_CLI_TOOLS" == true ]]; then
     log "Installing CLI tools."
-    apt_install bat eza fd-find ripgrep tldr tmux ncdu
+    apt_install bat eza fd-find ripgrep tealdeer tmux ncdu
+    log "tealdeer installed (command is still 'tldr'). Run 'tldr --update' once to download its cheatsheet cache — it doesn't do this automatically on install."
 
     # Debian ships bat's binary as "batcat" and fd-find's as "fdfind" —
     # both to avoid clashing with unrelated older packages that already
