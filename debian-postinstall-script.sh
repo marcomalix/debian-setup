@@ -603,7 +603,13 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$DO_ARCHIVE_TOOLS" == true ]]; then
     log "Installing archive tools."
-    apt_install p7zip-full unrar thunar-archive-plugin
+    # unrar-free instead of unrar: the full RARLAB unrar lives in Debian's
+    # non-free component, not enabled by default, and this script doesn't
+    # touch your sources.list to turn that on. unrar-free handles plain
+    # RAR5 archives fine on Debian 13; it just can't open password-encrypted
+    # RAR files. If you hit that limitation, enable non-free in
+    # /etc/apt/sources.list.d/debian.sources yourself and swap to `unrar`.
+    apt_install p7zip-full unrar-free thunar-archive-plugin
 fi
 
 # ---------------------------------------------------------------------------
