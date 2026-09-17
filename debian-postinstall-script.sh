@@ -595,7 +595,7 @@ if [[ "$DO_GVFS_EXTRAS" == true ]]; then
     log "Installing extra GVFS backends for Thunar."
     # Lets Thunar mount cameras/phones/network shares directly — relevant
     # if you're importing field photos from coastal work off a camera.
-    apt_install gvfs-gphoto2 gvfs-mtp gvfs-smb
+    apt_install gvfs-backends
 fi
 
 # ---------------------------------------------------------------------------
