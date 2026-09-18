@@ -555,7 +555,7 @@ fi
 # entry for your interface there so NetworkManager can manage it instead.
 if [[ "$DO_NETWORK_MANAGER" == true ]]; then
     log "Installing NetworkManager + tray applet."
-    apt_install network-manager network-manager-gnome
+    apt_install network-manager network-manager-applet
 fi
 
 # ---------------------------------------------------------------------------
