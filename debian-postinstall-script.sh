@@ -183,7 +183,6 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$DO_CORE_APPS" == true ]]; then
     log "Installing core applications."
-
     apt_install alacritty evince rofi plank qalculate-gtk
     apt_install htop btop fastfetch
     apt_install geany geany-plugin-addons geany-plugin-git-changebar \
@@ -328,6 +327,23 @@ EOF
     else
         log "Backports source already configured, skipping."
     fi
+
+    # Pin backports LOW so apt never pulls from it automatically for
+    # unrelated packages (e.g. a routine 'apt upgrade' deciding a newer
+    # PipeWire is "available" and half-upgrading it from backports while
+    # leaving related packages on the stable version — a real conflict this
+    # caused without the pin). -t trixie-backports (used below and anywhere
+    # else that explicitly wants a backports package) overrides this pin on
+    # a per-install basis, so LibreOffice still installs from there fine.
+    BACKPORTS_PIN="/etc/apt/preferences.d/backports-pin"
+    if [[ ! -f "$BACKPORTS_PIN" ]]; then
+        sudo tee "$BACKPORTS_PIN" > /dev/null << 'EOF'
+Package: *
+Pin: release a=trixie-backports
+Pin-Priority: 100
+EOF
+    fi
+
     sudo apt-get update
     if ! dpkg -s libreoffice &>/dev/null; then
         # libreoffice-gtk3 must come from backports too, alongside the main
