@@ -183,6 +183,7 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$DO_CORE_APPS" == true ]]; then
     log "Installing core applications."
+
     apt_install alacritty evince rofi plank qalculate-gtk
     apt_install htop btop fastfetch
     apt_install geany geany-plugin-addons geany-plugin-git-changebar \
