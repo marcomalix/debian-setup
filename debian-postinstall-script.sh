@@ -63,7 +63,7 @@ CELESTIAL_THEME_REPO="https://github.com/zquestz/celestial-gtk-theme.git"
 # Directory holding your exported XFCE panel + Geany config, expected to sit
 # right next to this script (see section 14 for how to create it).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES_DIR="${SCRIPT_DIR}/dotfiles"
+DOTFILES_DIR="${SCRIPT_DIR}/dotfiles-malik"
 
 LOG_FILE="$HOME/debian-postinstall.log"
 
@@ -705,30 +705,36 @@ if [[ "$DO_THUNDERBIRD" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 27. Restore your XFCE panel + Geany config
+# 27. Restore your XFCE panel, Geany, Plank, and Thunar config
 # ---------------------------------------------------------------------------
 # HOW TO SET THIS UP (run this once, on your CURRENT working machine, before
 # you reuse this script for a fresh install):
 #
-#   mkdir -p dotfiles
-#   cp -r ~/.config/xfce4 dotfiles/xfce4
-#   cp -r ~/.config/geany dotfiles/geany
+#   mkdir -p dotfiles-malik
+#   cp -r ~/.config/xfce4 dotfiles-malik/xfce4
+#   cp -r ~/.config/geany dotfiles-malik/geany
+#   cp -r ~/.config/plank dotfiles-malik/plank
+#   cp -r ~/.config/Thunar dotfiles-malik/Thunar
 #
-# Then copy the whole folder (this script + the dotfiles/ directory next to
-# it) to the new machine before running the script. xfce4/ carries your
-# panel layout, launchers, and plugin settings (xfconf); geany/ carries your
-# editor settings, keybindings, snippets, and any custom color scheme.
+# Then copy the whole folder (this script + the dotfiles-malik/ directory
+# next to it) to the new machine before running the script. xfce4/ carries
+# your panel layout, launchers, and plugin settings (xfconf); geany/ carries
+# your editor settings, keybindings, snippets, and any custom color scheme;
+# plank/ carries your dock's pinned apps and appearance; Thunar/ carries
+# your file manager's custom actions, bookmarks, and view preferences.
 #
-# This just needs to happen before you first log into XFCE — XFCE and Geany
-# both read these files at session/first-launch, so there's nothing to
-# "apply" afterwards, no panel restart needed.
+# This just needs to happen before you first log into XFCE — all four read
+# these files at session/first-launch, so there's nothing to "apply"
+# afterwards, no restart needed.
 if [[ "$DO_RESTORE_DOTFILES" == true ]]; then
     if [[ -d "$DOTFILES_DIR" ]]; then
         log "Restoring saved config from ${DOTFILES_DIR}."
         restore_config_dir "${DOTFILES_DIR}/xfce4" "$HOME/.config/xfce4"
         restore_config_dir "${DOTFILES_DIR}/geany" "$HOME/.config/geany"
+        restore_config_dir "${DOTFILES_DIR}/plank" "$HOME/.config/plank"
+        restore_config_dir "${DOTFILES_DIR}/Thunar" "$HOME/.config/Thunar"
     else
-        log "No dotfiles/ directory found next to the script (expected ${DOTFILES_DIR}) — skipping config restore. See the comment above this section for how to create it."
+        log "No dotfiles-malik/ directory found next to the script (expected ${DOTFILES_DIR}) — skipping config restore. See the comment above this section for how to create it."
     fi
 fi
 
