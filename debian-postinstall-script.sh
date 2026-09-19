@@ -26,7 +26,8 @@ DO_CREATIVE_GIS=true          # gimp, inkscape, qgis
 DO_BACKPORTS_LIBREOFFICE=true
 DO_ZOTERO=true
 DO_FIREFOX=true
-DO_BRAVE=true
+DO_BRAVE=true                  # installs Brave Origin (stripped-down, no ads/Leo/Rewards/telemetry)
+DO_BRAVE_BROWSER=false         # OFF by default — regular full-feature Brave, installed alongside Origin if true
 DO_BACKUP_TOOLS=true          # timeshift + borgbackup + vorta (GUI for borg)
 DO_R_RSTUDIO=true             # r-base + RStudio Desktop
 DO_LAPTOP_POWER=true           # zram, TLP, CPU microcode, SSD trim — see section 13
@@ -183,6 +184,7 @@ fi
 if [[ "$DO_CORE_APPS" == true ]]; then
     log "Installing core applications."
     apt_install alacritty evince rofi plank qalculate-gtk
+    apt_install htop btop fastfetch
     apt_install geany geany-plugin-addons geany-plugin-git-changebar \
         geany-plugin-overview geany-plugin-spellcheck geany-plugin-treebrowser \
         geany-plugin-markdown
@@ -393,16 +395,35 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# 10. Brave
+# 10. Brave (Origin by default; regular Brave Browser is opt-in)
 # ---------------------------------------------------------------------------
+# Brave Origin is a stripped-down Brave build — Leo AI, Rewards, Ads, Talk,
+# VPN, Wallet, daily usage pings, and analytics (P3A) are compiled out
+# entirely rather than just hidden. Free on Linux. It's not a separate
+# install method — it's just a different package name in Brave's own apt
+# repo, the same repo regular Brave uses — so this sets up that repo
+# properly (key + sources file, same transparent pattern as the Firefox
+# section above) instead of piping their install script into sh.
 if [[ "$DO_BRAVE" == true ]]; then
-    if ! command -v brave-browser &>/dev/null; then
-        log "Installing Brave."
-        # Third-party install script — review before trusting:
-        # https://brave.com/linux/
-        curl -fsS https://dl.brave.com/install.sh | sh
-    else
-        log "Brave already installed, skipping."
+    log "Configuring Brave's apt repo."
+    sudo install -d -m 0755 /usr/share/keyrings
+
+    BRAVE_KEYRING="/usr/share/keyrings/brave-browser-archive-keyring.gpg"
+    if [[ ! -f "$BRAVE_KEYRING" ]]; then
+        sudo curl -fsSLo "$BRAVE_KEYRING" https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+    fi
+
+    BRAVE_SOURCES="/etc/apt/sources.list.d/brave-browser-release.sources"
+    if [[ ! -f "$BRAVE_SOURCES" ]]; then
+        sudo curl -fsSLo "$BRAVE_SOURCES" https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
+    fi
+
+    sudo apt-get update
+    apt_install brave-origin
+
+    if [[ "$DO_BRAVE_BROWSER" == true ]]; then
+        log "Installing regular Brave Browser (full feature set) alongside Origin."
+        apt_install brave-browser
     fi
 fi
 
