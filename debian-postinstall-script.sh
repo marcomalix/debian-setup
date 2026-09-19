@@ -193,7 +193,7 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$DO_THEMING" == true ]]; then
     log "Installing theming packages."
-    apt_install arc-theme bibata-cursor-theme papirus-icon-theme
+    apt_install arc-theme bibata-cursor-theme papirus-icon-theme orchis-gtk-theme
 
     # Celestial theme: built from source, installs to ~/.themes (no sudo).
     if [[ ! -d "$HOME/.themes/Celestial" && ! -d "$HOME/.themes/Celestial-dark" ]]; then
@@ -205,24 +205,6 @@ if [[ "$DO_THEMING" == true ]]; then
         rm -rf "$CELESTIAL_TMP"
     else
         log "Celestial theme already installed, skipping."
-    fi
-
-    # Mint-Y / Mint-X: not packaged for Debian either (only in Linux Mint's
-    # own repo, built for Ubuntu bases). Built from source the same way as
-    # Celestial above. Bonus: the upstream repo already bundles matching
-    # xfwm4 window-border theming alongside the GTK theme, so this one step
-    # gets you both the look and matching window decorations.
-    if [[ ! -d "$HOME/.themes/Mint-Y" && ! -d "$HOME/.themes/Mint-X" ]]; then
-        log "Building and installing Mint-Y/Mint-X themes."
-        apt_install python3-libsass git
-        MINT_TMP="$(mktemp -d)"
-        git clone --depth=1 https://github.com/linuxmint/mint-themes.git "$MINT_TMP"
-        (cd "$MINT_TMP" && python3 generate-themes.py)
-        mkdir -p "$HOME/.themes"
-        cp -r "$MINT_TMP"/usr/share/themes/* "$HOME/.themes/"
-        rm -rf "$MINT_TMP"
-    else
-        log "Mint themes already installed, skipping."
     fi
 
     # Surfn icons: also not packaged, built by Erik Dubois, distributed as a
@@ -279,7 +261,7 @@ if [[ "$DO_THEMING" == true ]]; then
         log "Tela Circle icons already installed, skipping."
     fi
 
-    log "Theme + icons installed. Set them in Settings > Appearance (GTK theme: Celestial or Mint-Y/Mint-X; icons: Papirus, Surfn, Colloid, or Tela Circle) and Settings > Window Manager (matching xfwm4 theme) after login."
+    log "Theme + icons installed. Set them in Settings > Appearance (GTK theme: Celestial or Orchis; icons: Papirus, Surfn, Colloid, or Tela Circle) and Settings > Window Manager (matching xfwm4 theme) after login."
 fi
 
 # ---------------------------------------------------------------------------
