@@ -30,6 +30,7 @@ DO_BRAVE=true                  # installs Brave Origin (stripped-down, no ads/Le
 DO_BRAVE_BROWSER=false         # OFF by default — regular full-feature Brave, installed alongside Origin if true
 DO_BACKUP_TOOLS=true          # timeshift + borgbackup + vorta (GUI for borg)
 DO_R_RSTUDIO=true             # r-base + RStudio Desktop
+DO_SNAP=true                   # ESA SNAP, All Toolboxes — ~1 GB download, see section 28
 DO_LAPTOP_POWER=true           # zram, TLP, CPU microcode, SSD trim — see section 13
 DO_SECURITY=true               # UFW firewall + Bluetooth — see section 14
 DO_EXTRAS=true                  # xournalpp, pdfarranger, keepassxc, synaptic, redshift — see section 15
@@ -53,6 +54,13 @@ DO_CLEANUP=true
 # Before running, check the current one at https://posit.co/download/rstudio-desktop/
 # (look for the "Ubuntu / Debian" row) and update this if it's changed.
 RSTUDIO_DEB_URL="https://download1.rstudio.org/electron/jammy/amd64/rstudio-2026.08.2-200-amd64.deb"
+
+# ESA SNAP isn't packaged for Debian — it ships as an install4j .sh installer.
+# This version WILL go stale as ESA releases new ones. Before running, check
+# the current version at https://step.esa.int/main/download/snap-download/
+# and update it here; the download URLs and checksum URL are all derived
+# from this one value (major.minor is taken from it automatically).
+SNAP_VERSION="14.0.0"
 
 # Celestial GTK theme isn't packaged for Debian either — it's built and
 # installed from source via its own install.sh (this is the standard,
@@ -134,6 +142,18 @@ latest_github_zip_url() {
         | head -n1
 }
 
+latest_github_asset_url() {
+    # Prints a release asset URL matching an arbitrary substring (e.g. an
+    # architecture/variant tag in the filename) rather than assuming a fixed
+    # extension. Used where a repo publishes several asset variants and only
+    # one actually fits (e.g. PeaZip's per-arch/per-toolkit .deb files).
+    local repo="$1" name_pattern="$2"
+    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" \
+        | grep -oP '"browser_download_url":\s*"\K[^"]+' \
+        | grep -i "$name_pattern" \
+        | head -n1
+}
+
 # ---------------------------------------------------------------------------
 # Start
 # ---------------------------------------------------------------------------
@@ -184,7 +204,7 @@ fi
 if [[ "$DO_CORE_APPS" == true ]]; then
     log "Installing core applications."
     apt_install alacritty evince rofi plank qalculate-gtk
-    apt_install htop btop fastfetch duf
+    apt_install htop btop fastfetch
     apt_install geany geany-plugin-addons geany-plugin-git-changebar \
         geany-plugin-overview geany-plugin-spellcheck geany-plugin-treebrowser \
         geany-plugin-markdown
@@ -552,7 +572,8 @@ if [[ "$DO_EXTRAS" == true ]]; then
     #   was archived in April 2026; gammastep is the actively maintained
     #   fork of the same tool (same idea, same config style).
     # vlc: plays basically anything — video, audio, streams.
-    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc
+    # mpv: lighter, keyboard-driven alternative to VLC.
+    apt_install xournalpp pdfarranger keepassxc synaptic gammastep vlc mpv
 
     if [[ "$DO_FLATPAK" == true ]]; then
         log "Setting up Flatpak + Flathub."
@@ -630,6 +651,29 @@ if [[ "$DO_ARCHIVE_TOOLS" == true ]]; then
     # RAR files. If you hit that limitation, enable non-free in
     # /etc/apt/sources.list.d/debian.sources yourself and swap to `unrar`.
     apt_install p7zip-full unrar-free thunar-archive-plugin
+
+    # PeaZip: never packaged for Debian (a long-standing gap — it needs a
+    # Lazarus/FreePascal build environment Debian's build servers can't run),
+    # so it comes from their GitHub release .deb instead, same pattern as
+    # RStudio. GTK2 build to match your GTK-based desktop; apt (not dpkg -i)
+    # so any missing dependencies get pulled in automatically.
+    if ! dpkg -s peazip &>/dev/null; then
+        log "Installing PeaZip."
+        PEAZIP_URL="$(latest_github_asset_url "peazip/PeaZip" "gtk2.*amd64\.deb")"
+        if [[ -n "$PEAZIP_URL" ]]; then
+            PEAZIP_DEB="/tmp/$(basename "$PEAZIP_URL")"
+            if wget -q -O "$PEAZIP_DEB" "$PEAZIP_URL"; then
+                sudo apt-get install -y "$PEAZIP_DEB"
+            else
+                log "WARNING: failed to download PeaZip (network issue) — skipping. Rerun the script later to retry just this bit."
+            fi
+            rm -f "$PEAZIP_DEB"
+        else
+            log "WARNING: could not find a PeaZip .deb release asset — skipping. Check https://github.com/peazip/PeaZip/releases/latest manually."
+        fi
+    else
+        log "PeaZip already installed, skipping."
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -739,7 +783,82 @@ if [[ "$DO_RESTORE_DOTFILES" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 28. Cleanup
+# 28. ESA SNAP — All Toolboxes (Microwave + Optical + SMOS)
+# ---------------------------------------------------------------------------
+# Not packaged for Debian: ESA ships an install4j .sh installer. This does
+# what you'd do by hand (download, make executable, run), but unattended
+# (-q) so it doesn't wait on a GUI wizard, and with a checksum check since
+# it's executing a ~1 GB downloaded installer.
+#
+# Installed into your HOME (~/esa-snap), not /opt: SNAP's Plugin Manager
+# writes updates into its own install directory, so a root-owned install
+# means in-app updates fail with permission errors. The installer bundles
+# its own Java runtime — nothing extra to install for that.
+#
+# The installer is kept in ~/.cache until it succeeds, so a dropped
+# connection mid-download resumes on the next run instead of restarting.
+if [[ "$DO_SNAP" == true ]]; then
+    SNAP_DIR="$HOME/esa-snap"
+    SNAP_SERIES="${SNAP_VERSION%.*}"   # 14.0.0 -> 14.0
+    SNAP_INSTALLER_NAME="esa-snap_all_linux-${SNAP_VERSION}.sh"
+    SNAP_CACHE="$HOME/.cache/esa-snap-installer"
+    SNAP_INSTALLER="${SNAP_CACHE}/${SNAP_INSTALLER_NAME}"
+
+    if [[ -x "$SNAP_DIR/bin/snap" || -x "$SNAP_DIR/bin/gpt" ]]; then
+        log "ESA SNAP already installed in ${SNAP_DIR}, skipping."
+    else
+        log "Installing ESA SNAP ${SNAP_VERSION} (All Toolboxes) — about 1 GB to download."
+        mkdir -p "$SNAP_CACHE"
+
+        # ESA's main server first, their mirror as fallback.
+        snap_downloaded=false
+        for snap_base in "https://download.esa.int/step/snap/${SNAP_SERIES}/installers" \
+                         "https://step.esa.int/downloads/${SNAP_SERIES}/installers"; do
+            if wget -c -q --show-progress -P "$SNAP_CACHE" "${snap_base}/${SNAP_INSTALLER_NAME}"; then
+                snap_downloaded=true
+                break
+            fi
+            log "Download from ${snap_base} failed, trying the next source."
+        done
+
+        if [[ "$snap_downloaded" == true ]]; then
+            snap_ok=true
+            # Compare against ESA's published SHA256. If the checksum list
+            # can't be fetched/parsed, carry on (the download was HTTPS);
+            # if it IS available and doesn't match, don't run the installer.
+            SNAP_SUMS="$(curl -fsSL "https://step.esa.int/downloads/${SNAP_SERIES}/installers/sha256sums" 2>/dev/null || true)"
+            SNAP_EXPECTED="$(printf '%s\n' "$SNAP_SUMS" | grep -F "$SNAP_INSTALLER_NAME" | awk '{print $1}' | head -n1 || true)"
+            if [[ -n "$SNAP_EXPECTED" ]]; then
+                SNAP_ACTUAL="$(sha256sum "$SNAP_INSTALLER" | awk '{print $1}')"
+                if [[ "$SNAP_EXPECTED" != "$SNAP_ACTUAL" ]]; then
+                    log "WARNING: SHA256 mismatch for ${SNAP_INSTALLER_NAME} (corrupt or incomplete download) — not running it. Deleted; rerun the script to download again."
+                    rm -f "$SNAP_INSTALLER"
+                    snap_ok=false
+                else
+                    log "SHA256 checksum verified."
+                fi
+            else
+                log "NOTE: could not fetch ESA's checksum list — skipping the integrity check."
+            fi
+
+            if [[ "$snap_ok" == true ]]; then
+                chmod +x "$SNAP_INSTALLER"
+                log "Running the SNAP installer unattended into ${SNAP_DIR} (a few minutes, mostly silent)."
+                if "$SNAP_INSTALLER" -q -dir "$SNAP_DIR"; then
+                    log "ESA SNAP installed. Launch it from the applications menu, or run ${SNAP_DIR}/bin/snap"
+                    rm -f "$SNAP_INSTALLER"
+                else
+                    log "WARNING: the SNAP installer reported an error — see its output above. The installer is kept at ${SNAP_INSTALLER} so you can run it by hand."
+                fi
+            fi
+        else
+            log "WARNING: could not download the SNAP installer from either ESA source — skipping. Rerun the script later; the partial download resumes."
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 29. Cleanup
 # ---------------------------------------------------------------------------
 if [[ "$DO_CLEANUP" == true ]]; then
     log "Cleaning up unused packages."
