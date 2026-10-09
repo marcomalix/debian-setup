@@ -97,8 +97,14 @@ require_not_root() {
     fi
 }
 
+# Package installs that failed, reported in a summary at the very end.
+FAILED_PACKAGES=()
+
 apt_install() {
     # Installs only packages that aren't already installed.
+    # A failed install does NOT abort the script: it's logged and collected
+    # into FAILED_PACKAGES, so one bad package name or dependency conflict
+    # can't stop every later section (SNAP, dotfiles restore, ...) from running.
     local pkgs=("$@")
     local to_install=()
     for pkg in "${pkgs[@]}"; do
@@ -108,7 +114,10 @@ apt_install() {
     done
     if [[ ${#to_install[@]} -gt 0 ]]; then
         log "Installing: ${to_install[*]}"
-        sudo apt-get install -y "${to_install[@]}"
+        if ! sudo apt-get install -y "${to_install[@]}"; then
+            log "WARNING: failed to install: ${to_install[*]} — continuing with the rest of the script."
+            FAILED_PACKAGES+=("${to_install[*]}")
+        fi
     else
         log "Already installed, skipping: ${pkgs[*]}"
     fi
@@ -866,7 +875,14 @@ if [[ "$DO_CLEANUP" == true ]]; then
     sudo apt-get autoclean -y
 fi
 
-log "Post-install script finished successfully."
+if [[ ${#FAILED_PACKAGES[@]} -gt 0 ]]; then
+    log "Post-install script finished, BUT these package installs failed and need a look:"
+    for failed in "${FAILED_PACKAGES[@]}"; do
+        log "  - ${failed}"
+    done
+else
+    log "Post-install script finished successfully."
+fi
 if [[ "$DO_DESKTOP_ENV" == true ]]; then
     log "Reboot now to reach the graphical XFCE login (sudo reboot)."
 fi
