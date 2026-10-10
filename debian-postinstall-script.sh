@@ -58,8 +58,8 @@ RSTUDIO_DEB_URL="https://download1.rstudio.org/electron/jammy/amd64/rstudio-2026
 # ESA SNAP isn't packaged for Debian — it ships as an install4j .sh installer.
 # This version WILL go stale as ESA releases new ones. Before running, check
 # the current version at https://step.esa.int/main/download/snap-download/
-# and update it here; the download URLs and checksum URL are all derived
-# from this one value (major.minor is taken from it automatically).
+# and update it here; the download URLs are derived from this one value
+# (major.minor is taken from it automatically).
 SNAP_VERSION="14.0.0"
 
 # Celestial GTK theme isn't packaged for Debian either — it's built and
@@ -217,6 +217,11 @@ if [[ "$DO_CORE_APPS" == true ]]; then
     apt_install geany geany-plugin-addons geany-plugin-git-changebar \
         geany-plugin-overview geany-plugin-spellcheck geany-plugin-treebrowser \
         geany-plugin-markdown
+    # micro: friendly terminal text editor (ctrl+s / ctrl+c / ctrl+v work as
+    # you'd expect, unlike vi/nano quirks). xclip lets it use the system
+    # clipboard under X11 — micro recommends it, listed explicitly here in
+    # case your apt config skips "Recommends".
+    apt_install micro xclip
 fi
 
 # ---------------------------------------------------------------------------
@@ -796,8 +801,8 @@ fi
 # ---------------------------------------------------------------------------
 # Not packaged for Debian: ESA ships an install4j .sh installer. This does
 # what you'd do by hand (download, make executable, run), but unattended
-# (-q) so it doesn't wait on a GUI wizard, and with a checksum check since
-# it's executing a ~1 GB downloaded installer.
+# (-q) so it doesn't wait on a GUI wizard. No checksum step: the download is
+# HTTPS from esa.int, and wget fails on an incomplete transfer.
 #
 # Installed into your HOME (~/esa-snap), not /opt: SNAP's Plugin Manager
 # writes updates into its own install directory, so a root-owned install
@@ -806,12 +811,15 @@ fi
 #
 # The installer is kept in ~/.cache until it succeeds, so a dropped
 # connection mid-download resumes on the next run instead of restarting.
+# install4j is silent in -q mode, so its own log is written to
+# ~/esa-snap-install.log — look there if the install fails.
 if [[ "$DO_SNAP" == true ]]; then
     SNAP_DIR="$HOME/esa-snap"
     SNAP_SERIES="${SNAP_VERSION%.*}"   # 14.0.0 -> 14.0
     SNAP_INSTALLER_NAME="esa-snap_all_linux-${SNAP_VERSION}.sh"
     SNAP_CACHE="$HOME/.cache/esa-snap-installer"
     SNAP_INSTALLER="${SNAP_CACHE}/${SNAP_INSTALLER_NAME}"
+    SNAP_LOG="$HOME/esa-snap-install.log"
 
     if [[ -x "$SNAP_DIR/bin/snap" || -x "$SNAP_DIR/bin/gpt" ]]; then
         log "ESA SNAP already installed in ${SNAP_DIR}, skipping."
@@ -831,34 +839,19 @@ if [[ "$DO_SNAP" == true ]]; then
         done
 
         if [[ "$snap_downloaded" == true ]]; then
-            snap_ok=true
-            # Compare against ESA's published SHA256. If the checksum list
-            # can't be fetched/parsed, carry on (the download was HTTPS);
-            # if it IS available and doesn't match, don't run the installer.
-            SNAP_SUMS="$(curl -fsSL "https://step.esa.int/downloads/${SNAP_SERIES}/installers/sha256sums" 2>/dev/null || true)"
-            SNAP_EXPECTED="$(printf '%s\n' "$SNAP_SUMS" | grep -F "$SNAP_INSTALLER_NAME" | awk '{print $1}' | head -n1 || true)"
-            if [[ -n "$SNAP_EXPECTED" ]]; then
-                SNAP_ACTUAL="$(sha256sum "$SNAP_INSTALLER" | awk '{print $1}')"
-                if [[ "$SNAP_EXPECTED" != "$SNAP_ACTUAL" ]]; then
-                    log "WARNING: SHA256 mismatch for ${SNAP_INSTALLER_NAME} (corrupt or incomplete download) — not running it. Deleted; rerun the script to download again."
-                    rm -f "$SNAP_INSTALLER"
-                    snap_ok=false
-                else
-                    log "SHA256 checksum verified."
-                fi
-            else
-                log "NOTE: could not fetch ESA's checksum list — skipping the integrity check."
-            fi
-
-            if [[ "$snap_ok" == true ]]; then
-                chmod +x "$SNAP_INSTALLER"
-                log "Running the SNAP installer unattended into ${SNAP_DIR} (a few minutes, mostly silent)."
-                if "$SNAP_INSTALLER" -q -dir "$SNAP_DIR"; then
+            chmod +x "$SNAP_INSTALLER"
+            log "Running the SNAP installer unattended into ${SNAP_DIR} (a few minutes, mostly silent)."
+            if "$SNAP_INSTALLER" -q -dir "$SNAP_DIR" -Dinstall4j.alternativeLogfile="$SNAP_LOG"; then
+                # Exit code 0 isn't proof of a complete install — check that
+                # SNAP's launcher is actually there before declaring success.
+                if [[ -x "$SNAP_DIR/bin/snap" || -x "$SNAP_DIR/bin/gpt" ]]; then
                     log "ESA SNAP installed. Launch it from the applications menu, or run ${SNAP_DIR}/bin/snap"
                     rm -f "$SNAP_INSTALLER"
                 else
-                    log "WARNING: the SNAP installer reported an error — see its output above. The installer is kept at ${SNAP_INSTALLER} so you can run it by hand."
+                    log "WARNING: the installer exited without an error, but ${SNAP_DIR} contains no SNAP launcher — the install looks incomplete. Installer log: ${SNAP_LOG}. The installer is kept at ${SNAP_INSTALLER}."
                 fi
+            else
+                log "WARNING: the SNAP installer reported an error. Installer log: ${SNAP_LOG}. The installer is kept at ${SNAP_INSTALLER} so you can run it by hand."
             fi
         else
             log "WARNING: could not download the SNAP installer from either ESA source — skipping. Rerun the script later; the partial download resumes."
