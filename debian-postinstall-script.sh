@@ -31,6 +31,7 @@ DO_BRAVE_BROWSER=false         # OFF by default — regular full-feature Brave, 
 DO_BACKUP_TOOLS=true          # timeshift + borgbackup + vorta (GUI for borg)
 DO_R_RSTUDIO=true             # r-base + RStudio Desktop
 DO_SNAP=true                   # ESA SNAP, All Toolboxes — ~1 GB download, see section 28
+DO_SEADAS=true                 # NASA SeaDAS (ocean colour), large download — see section 29
 DO_LAPTOP_POWER=true           # zram, TLP, CPU microcode, SSD trim — see section 13
 DO_SECURITY=true               # UFW firewall + Bluetooth — see section 14
 DO_EXTRAS=true                  # xournalpp, pdfarranger, keepassxc, synaptic, redshift — see section 15
@@ -61,6 +62,13 @@ RSTUDIO_DEB_URL="https://download1.rstudio.org/electron/jammy/amd64/rstudio-2026
 # and update it here; the download URLs are derived from this one value
 # (major.minor is taken from it automatically).
 SNAP_VERSION="14.0.0"
+
+# NASA SeaDAS (ocean-colour analysis, SNAP-based) — also a .sh installer, not
+# packaged for Debian. 11.0.0 is the release at the time of writing; 12.0.0 is
+# scheduled for Oct 15, 2026 and uses the same URL pattern, so once it is out
+# you can just change this value. Check the current version at
+# https://github.com/seadas/seadas-toolbox/wiki/SeaDAS-Download-Latest-Version
+SEADAS_VERSION="11.0.0"
 
 # Celestial GTK theme isn't packaged for Debian either — it's built and
 # installed from source via its own install.sh (this is the standard,
@@ -860,7 +868,59 @@ if [[ "$DO_SNAP" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 29. Cleanup
+# 29. NASA SeaDAS — ocean-colour analysis (visualisation application)
+# ---------------------------------------------------------------------------
+# Follows NASA's own Linux steps (download the installer, run it with sh,
+# choose an install directory), but unattended (-q -dir) so it doesn't wait
+# on a wizard. Installs into ~/seadas-<version>, matching NASA's example
+# layout; launch with ~/seadas-<version>/bin/seadas. Uses the installer with
+# the bundled Java runtime, so no separate Java is needed.
+#
+# This is the SeaDAS application only. The OCSSW science processors (the
+# actual ocean-colour processing code) are a separate, much larger install
+# that NASA documents as a "subsequent" step — NOT done here. NASA's older
+# SeaDAS pages describe a menu item for it inside the app (SeaDAS-OCSSW >
+# Install/Update OC Processors); check the current instructions before
+# relying on that for version 11.
+#
+# Same safeguards as the SNAP section: resumable download kept in ~/.cache
+# until it succeeds, install4j's own log in ~/seadas-install.log (it is
+# silent in -q mode), and a check that the launcher really exists afterwards.
+if [[ "$DO_SEADAS" == true ]]; then
+    SEADAS_DIR="$HOME/seadas-${SEADAS_VERSION}"
+    SEADAS_INSTALLER_NAME="seadas_${SEADAS_VERSION}_linux64_installer.sh"
+    SEADAS_URL="https://oceandata.sci.gsfc.nasa.gov/SeaDAS/installer/${SEADAS_VERSION}/${SEADAS_INSTALLER_NAME}"
+    SEADAS_CACHE="$HOME/.cache/seadas-installer"
+    SEADAS_INSTALLER="${SEADAS_CACHE}/${SEADAS_INSTALLER_NAME}"
+    SEADAS_LOG="$HOME/seadas-install.log"
+
+    if [[ -x "$SEADAS_DIR/bin/seadas" ]]; then
+        log "SeaDAS ${SEADAS_VERSION} already installed in ${SEADAS_DIR}, skipping."
+    else
+        log "Installing NASA SeaDAS ${SEADAS_VERSION} (application only, not the OCSSW processors)."
+        mkdir -p "$SEADAS_CACHE"
+
+        if wget -c -q --show-progress -P "$SEADAS_CACHE" "$SEADAS_URL"; then
+            chmod +x "$SEADAS_INSTALLER"
+            log "Running the SeaDAS installer unattended into ${SEADAS_DIR} (a few minutes, mostly silent)."
+            if "$SEADAS_INSTALLER" -q -dir "$SEADAS_DIR" -Dinstall4j.alternativeLogfile="$SEADAS_LOG"; then
+                if [[ -x "$SEADAS_DIR/bin/seadas" ]]; then
+                    log "SeaDAS installed. Launch it from the applications menu, or run ${SEADAS_DIR}/bin/seadas"
+                    rm -f "$SEADAS_INSTALLER"
+                else
+                    log "WARNING: the installer exited without an error, but ${SEADAS_DIR} contains no SeaDAS launcher — the install looks incomplete. Installer log: ${SEADAS_LOG}. The installer is kept at ${SEADAS_INSTALLER}."
+                fi
+            else
+                log "WARNING: the SeaDAS installer reported an error. Installer log: ${SEADAS_LOG}. The installer is kept at ${SEADAS_INSTALLER} so you can run it by hand."
+            fi
+        else
+            log "WARNING: could not download the SeaDAS installer from ${SEADAS_URL} — skipping. If it keeps failing, NASA may be requiring a login for that download now: get the file from NASA's SeaDAS page in a browser, put it in ${SEADAS_CACHE}, and rerun."
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 30. Cleanup
 # ---------------------------------------------------------------------------
 if [[ "$DO_CLEANUP" == true ]]; then
     log "Cleaning up unused packages."
